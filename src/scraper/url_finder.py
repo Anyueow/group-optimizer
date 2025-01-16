@@ -1,167 +1,205 @@
+from urllib.parse import quote_plus
 import requests
-from bs4 import BeautifulSoup
 import time
-from urllib.parse import unquote
-import gzip
-import io
-import json
 import random
+import traceback
+from bs4 import BeautifulSoup
+
 class URLFinder:
-    def __init__(self, college="Northeastern University", debug=False):
+    def __init__(
+            self,
+            college="Northeastern University",
+            debug=False,
+            rate_limit_per_second=1
+    ):
+        """
+        Initialize the URLFinder with necessary configurations.
+        """
         self.college = college
         self.debug = debug
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate",  # Explicitly handle gzip
-            "Cache-Control": "no-cache",
-            "Pragma": "no-cache",
-            "DNT": "1",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-        }
+        self.rate_limit_per_second = rate_limit_per_second
+        self.last_request_time = 0  # To handle rate limiting
+
+        # Basic settings for retries
+        self.base_delay = 1
+        self.max_retries = 3
+
+        # Use a requests Session for re-use of connections
         self.session = requests.Session()
-        self.session.headers.update(self.headers)
 
     def _debug_print(self, message, level=1):
         if self.debug:
             prefix = "  " * (level - 1)
             print(f"[DEBUG-{level}] {prefix}{message}")
 
-    def _decode_response(self, response):
-        """Properly decode the response content"""
-        try:
-            # Check if content is gzipped
-            if response.headers.get('content-encoding') == 'gzip':
-                buf = io.BytesIO(response.content)
-                with gzip.GzipFile(fileobj=buf) as f:
-                    content = f.read().decode('utf-8')
-            else:
-                content = response.content.decode('utf-8')
-            return content
-        except Exception as e:
-            self._debug_print(f"Error decoding response: {str(e)}", 2)
-            # Fallback to raw text
-            return response.text
+    def _get_random_user_agent(self):
+        """
+        Return a random User-Agent string from a small preset list.
+        """
+        user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 "
+            "Mobile/15E148 Safari/604.1",
+        ]
+        return random.choice(user_agents)
 
     def fetch_linkedin_url(self, name):
-        try:
-            search_query = f'"{name}" "{self.college}" site:linkedin.com/in/'
-            search_url = f"https://www.google.com/search?q={requests.utils.quote(search_query)}&hl=en"
-            self._debug_print(f"Search URL: {search_url}")
+        """
+        Perform a Bing web search for: "name college site:linkedin.com/in/"
+        Then strictly traverse:
+          1. <ol id="b_results">
+          2. <li class="b_algo">
+          3. <div class="b_tpcn">
+          4. <a class="tilk" aria-label="LinkedIn"> -> href
+        Return the href if 'linkedin.com/in' is found.
+        """
+        retries = 0
+        delay = self.base_delay
 
-            # Add random delay
-            rand = random.random()
-            time.sleep(2 + rand)
+        while retries < self.max_retries:
+            try:
+                # Enforce a simple rate limit to avoid hammering
+                current_time = time.time()
+                elapsed = current_time - self.last_request_time
+                if elapsed < (1 / self.rate_limit_per_second):
+                    time.sleep((1 / self.rate_limit_per_second) - elapsed)
+                self.last_request_time = time.time()
 
-            # Make the request
-            response = self.session.get(
-                search_url,
-                timeout=10,
-                allow_redirects=True,
-                headers=self.headers
-            )
-            response.raise_for_status()
+                # Build the search query
+                search_query = f'"{name}" "{self.college}" site:linkedin.com/in/'
+                encoded_query = quote_plus(search_query)
+                search_url = f"https://www.bing.com/search?q={encoded_query}&setmkt=en-US"
+                self._debug_print(f"Search URL: {search_url}", level=1)
 
-            # Decode the response
-            content = self._decode_response(response)
+                # Prepare headers with a random user-agent
+                headers = {"User-Agent": self._get_random_user_agent()}
 
-            # Save raw HTML for debugging
-            with open('debug_output.html', 'w', encoding='utf-8') as f:
-                f.write(content)
-            self._debug_print("Saved decoded HTML to debug_output.html")
+                # Make the request
+                response = self.session.get(
+                    search_url,
+                    timeout=10,
+                    allow_redirects=True,
+                    headers=headers
+                )
 
-            # Parse with BeautifulSoup
-            soup = BeautifulSoup(content, 'html.parser')
+                # Check status code
+                if response.status_code != 200:
+                    self._debug_print(
+                        f"Non-200 status code: {response.status_code}", level=2
+                    )
+                    raise requests.exceptions.RequestException(
+                        f"Status code: {response.status_code}"
+                    )
 
-            # Debug response info
-            self._debug_print(f"Response status code: {response.status_code}")
-            self._debug_print(f"Response headers: {json.dumps(dict(response.headers), indent=2)}", 2)
+                # Parse the HTML with BeautifulSoup
+                soup = BeautifulSoup(response.text, "html.parser")
 
-            # Look for any divs with class 'g' (Google search results)
-            results = soup.find_all('div', class_='g')
-            self._debug_print(f"Found {len(results)} search result containers")
+                # 1) Find <ol id="b_results">
+                ol_results = soup.find("ol", id="b_results")
+                if not ol_results:
+                    self._debug_print("Cannot find <ol id='b_results'>", level=2)
+                    return None
 
-            for result in results:
-                self._debug_print("\nAnalyzing search result:", 2)
-                # Look for the title element
-                title = result.find('h3', class_=['LC20lb', 'DKV0Md'])
-                if title:
-                    self._debug_print(f"Found title: {title.text}", 2)
+                # 2) Find the first <li class="b_algo">
+                li_b_algo = ol_results.find("li", class_="b_algo")
+                if not li_b_algo:
+                    self._debug_print("Cannot find <li class='b_algo'>", level=2)
+                    return None
 
-                # Find all links in this result
-                links = result.find_all('a')
-                for link in links:
-                    href = link.get('href', '')
-                    self._debug_print(f"Found link: {href}", 3)
+                # 3) Find the first <div class="b_tpcn">
+                div_b_tpcn = li_b_algo.find("div", class_="b_tpcn")
+                if not div_b_tpcn:
+                    self._debug_print("Cannot find <div class='b_tpcn'>", level=2)
+                    return None
 
-                    if 'linkedin.com/in/' in href:
-                        # Clean up the URL
-                        if "/url?q=" in href:
-                            href = href.split("/url?q=")[1].split("&")[0]
-                        href = unquote(href)
+                # 4) In that div, find <a class="tilk" aria-label="LinkedIn">
+                a_tilk = div_b_tpcn.find("a")
+                if not a_tilk:
+                    self._debug_print(
+                        "Cannot find <a class='tilk' aria-label='LinkedIn'>",
+                        level=2
+                    )
+                    return None
 
-                        if not href.endswith('/'):
-                            href += '/'
-
-                        self._debug_print(f"Found LinkedIn URL: {href}")
-                        return href
-
-            # If no results found in main container, try alternative selectors
-            self._debug_print("\nTrying alternative selectors...")
-
-            # Try finding any link containing linkedin.com/in
-            all_links = soup.find_all('a', href=lambda x: x and 'linkedin.com/in/' in x)
-            self._debug_print(f"Found {len(all_links)} direct LinkedIn links")
-
-            for link in all_links:
-                href = link.get('href', '')
-                self._debug_print(f"Processing direct link: {href}", 2)
-
-                if 'linkedin.com/in/' in href:
-                    if "/url?q=" in href:
-                        href = href.split("/url?q=")[1].split("&")[0]
-                    href = unquote(href)
-
-                    if not href.endswith('/'):
-                        href += '/'
-
+                href = a_tilk.get("href", "")
+                if "linkedin.com/in" in href:
+                    self._debug_print(
+                        f"Found LinkedIn URL for {name}: {href}",
+                        level=2
+                    )
                     return href
+                else:
+                    self._debug_print(
+                        f"No valid LinkedIn link in the first b_algo for {name}.",
+                        level=2
+                    )
+                    return None
 
-            self._debug_print("No LinkedIn URL found")
-            return None
+            except requests.exceptions.RequestException as e:
+                self._debug_print(f"Request exception: {str(e)}", level=2)
+                self._debug_print(f"Retrying after {delay} seconds...", level=2)
+                time.sleep(delay)
+                retries += 1
+                delay *= 2  # Exponential backoff
 
-        except Exception as e:
-            self._debug_print(f"Error in fetch_linkedin_url: {str(e)}")
-            import traceback
-            self._debug_print(f"Traceback: {traceback.format_exc()}", 2)
-            return None
+            except Exception as e:
+                self._debug_print(f"Unexpected error: {str(e)}", level=2)
+                self._debug_print(f"Traceback: {traceback.format_exc()}", level=3)
+                return None
+
+        # If we exhausted retries
+        self._debug_print(
+            f"Failed to fetch LinkedIn URL for {name} after {self.max_retries} retries.",
+            level=1
+        )
+        return None
 
     def update_person_list(self, person_list):
+        """
+        Given a list of Person objects (with name attribute),
+        update their .linkedin attribute with the discovered LinkedIn URL.
+        """
         updated_count = 0
         for person in person_list:
-            self._debug_print(f"\nProcessing person: {person.name}")
+            self._debug_print(f"\nProcessing person: {person.name}", level=1)
             if not person.linkedin:
                 linkedin_url = self.fetch_linkedin_url(person.name)
                 if linkedin_url:
                     person.linkedin = linkedin_url
                     updated_count += 1
-                    self._debug_print(f"Successfully updated {person.name} with URL: {linkedin_url}")
+                    self._debug_print(
+                        f"Successfully updated {person.name} with URL: {linkedin_url}",
+                        level=1
+                    )
                 else:
-                    self._debug_print(f"No LinkedIn URL found for {person.name}")
+                    self._debug_print(f"No LinkedIn URL found for {person.name}", level=1)
 
-            time.sleep(3)
+                # Optional: Add a small delay between requests to be polite
+                time.sleep(1)
 
-        self._debug_print(f"\nUpdated {updated_count} out of {len(person_list)} profiles")
+        self._debug_print(f"\nUpdated {updated_count} out of {len(person_list)} profiles", level=1)
         return person_list
 
 def main():
-    from src.objects.person import Person
+    # Dummy Person class for demonstration; adapt to your own models as needed.
+    class Person:
+        def __init__(self, name, linkedin=None):
+            self.name = name
+            self.linkedin = linkedin
+
+        def __repr__(self):
+            return f"Person(name='{self.name}', linkedin='{self.linkedin}')"
 
     persons = [
-        Person(name="Ananya Shah", email="No Email"),
-        Person(name="Fu Chai", email="No Email")
+        Person(name="Ananya Shah"),
+        Person(name="Fu Chai"),
+        Person(name="Siya Patel")
     ]
 
     scraper = URLFinder(debug=True)
