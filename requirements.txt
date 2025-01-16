@@ -1,0 +1,5 @@
+requests~=2.32.3
+browser-cookie3
+linkedin_scraper
+transformers
+torch
