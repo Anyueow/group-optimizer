@@ -5,9 +5,9 @@ class Person:
     Represents a single person (or user) in the roster.
     """
 
-    def __init__(self, name, email):
+    def __init__(self, name):
         self.name = name
-        self.email = email
+        self.email = None
         self.linkedin = None
         self.personality_score = None
 
@@ -24,4 +24,4 @@ class Person:
         self.personality_score = score
 
     def __repr__(self):
-        return f"<Person name={self.name}, email={self.email}, linkedin={self.linkedin}>"
+        return f"<Person name={self.name}, email={self.email}, linkedin={self.linkedin}>, personality_score={self.personality_score}>"

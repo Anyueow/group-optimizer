@@ -6,6 +6,7 @@ import secrets  # optional if you store credentials in a separate secrets file
 from linkedin_scraper import LinkedInScraper
 from models import LinkedInProfile
 from profile_analyzer import LinkedInPersonalityAnalyzer
+from src.objects.person import Person
 
 
 def profile_to_dict(lp: LinkedInProfile) -> dict:
@@ -81,14 +82,14 @@ def run_batch_analysis(profile_urls: List[str]) -> List[dict]:
         name = analysis_result['name']
         personality_score = analysis_result['group_project_fit_score']  # or define your own logic
 
-        # Append final output
-        results.append({
-            'name': name,
-            'personality_score': personality_score
-        })
+        # Create a Person object
+        person = Person(name=name)  # Provide a placeholder or actual email
+        person.set_personality_score(personality_score)
 
-    # 6) Close the scraper
-    scraper.close()
+        # Append the Person object to the results list
+        results.append(person)
+        # 6) Close the scraper
+        scraper.close()
 
     return results
 
