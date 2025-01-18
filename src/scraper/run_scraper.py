@@ -1,82 +1,93 @@
 # scraper.py
 """
-Non-class script that orchestrates the scraping.
+Class-based script that orchestrates the scraping.
 """
 import os
 import sys
-
 
 from src.objects.CanvasScraper import CanvasScraper
 from src.objects.person import Person
 
 
-def main():
-    # Initialize with Northeastern Canvas URL
-    canvas_url = "https://northeastern.instructure.com"
-    scraper = CanvasScraper(canvas_url)
+class CanvasScraperManager:
+    """
+    Orchestrates loading cookies from Edge, fetching course details,
+    and processing the roster for a given course on Northeastern's Canvas.
+    """
 
-    print("\nAttempting to load cookies from Edge browser...")
-    if not scraper.load_cookies_from_browser('edge'):
-        print("Failed to load cookies! Make sure you're logged into Canvas in Edge browser.")
-        return
+    def __init__(self, canvas_url: str = "https://northeastern.instructure.com"):
+        """
+        Initializes the CanvasScraper with the given Canvas URL.
+        """
+        self.canvas_url = canvas_url
+        self.scraper = CanvasScraper(self.canvas_url)
+        self.output_dir = "canvas_data"
 
-    print("Successfully loaded cookies!")
+    def run(self):
+        """
+        Orchestrates the scraping logic: loads cookies, lists courses,
+        prompts user for course selection, fetches the roster, and processes it.
+        """
+        # 1. Load cookies
+        print("\nAttempting to load cookies from Edge browser...")
+        if not self.scraper.load_cookies_from_browser('edge'):
+            print("Failed to load cookies! Make sure you're logged into Canvas in Edge browser.")
+            return
+        print("Successfully loaded cookies!")
 
-    # Fetch courses
-    print("\nFetching courses...")
-    courses = scraper.get_courses()
+        # 2. Fetch courses
+        print("\nFetching courses...")
+        courses = self.scraper.get_courses()
+        if not courses:
+            print("No courses found! Check if you're properly logged in.")
+            return
 
-    if not courses:
-        print("No courses found! Check if you're properly logged in.")
-        return
+        # 3. Display courses
+        print("\nAvailable Courses:")
+        for i, (course_id, course_name) in enumerate(courses, 1):
+            print(f"{i}. {course_name} (ID: {course_id})")
 
-    # Display courses
-    print("\nAvailable Courses:")
-    for i, (course_id, course_name) in enumerate(courses, 1):
-        print(f"{i}. {course_name} (ID: {course_id})")
+        # 4. Get course selection from user input
+        selected_course_id = self._select_course(courses)
+        if not selected_course_id:
+            return  # Invalid or no selection made, just return
 
-    # Get course selection
-    while True:
-        try:
-            selection = int(input("\nEnter the number of the course to analyze: ")) - 1
-            if 0 <= selection < len(courses):
-                selected_course_id = courses[selection][0]
-                break
-            print("Invalid selection. Please try again.")
-        except ValueError:
-            print("Please enter a valid number.")
+        # 5. Create output directory if it does not exist
+        os.makedirs(self.output_dir, exist_ok=True)
 
-    # Create output directory
-    output_dir = "canvas_data"
-    os.makedirs(output_dir, exist_ok=True)
+        # 6. Fetch roster and create Person objects
+        print(f"\nFetching roster for course ID: {selected_course_id}")
+        roster = self.scraper.get_course_roster(selected_course_id)
+        total_users = len(roster)
+        print(f"\nFound {total_users} users. Processing user data...")
 
-    # Fetch roster and user data
-    print(f"\nFetching roster for course ID: {selected_course_id}")
-    roster = scraper.get_course_roster(selected_course_id)
+        # Convert each dict in roster to a Person object
+        persons = [Person(user_dict.get('name', 'Unknown Name')) for user_dict in roster]
+        print(f"Retrieved {len(persons)} persons from the roster.")
 
-    roster_data = []
-    total_users = len(roster)
-    print(f"\nFound {total_users} users. Processing user data...")
+        # 7. (Optional) Enrich the data (e.g., LinkedInScraper)
+        # linkedin_scraper = LinkedInScraper()
+        # linkedin_scraper.scrape_linkedin_info(persons)
 
-    # 6. Convert each dict in roster to a Person object
-    persons = []
-    for user_dict in roster:
-        name = user_dict.get('name', 'Unknown Name')
-        email = user_dict.get('email', 'No Email')
-        person = Person(name, email)
-        persons.append(person)
+        # 8. Print final results (or do something else with them)
+        for p in persons:
+            print(f"{p}")
 
-    print(f"Retrieved {len(persons)} persons from the roster.")
+    def _select_course(self, courses):
+        """
+        Helper method to prompt user for course selection from a list of courses.
+        Returns the selected course ID or None if selection is invalid.
+        """
+        while True:
+            try:
+                selection = int(input("\nEnter the number of the course to analyze: ")) - 1
+                if 0 <= selection < len(courses):
+                    return courses[selection][0]
+                print("Invalid selection. Please try again.")
+            except ValueError:
+                print("Please enter a valid number.")
 
-
-
-    # 8. Pass the persons to LinkedInScraper to enrich them
-    #linkedin_scraper = LinkedInScraper()
-    #linkedin_scraper.scrape_linkedin_info(persons)
-
-    # 9. Print final results (or do something else with them)
-    for p in persons:
-        print(f"{p}")
 
 if __name__ == "__main__":
-    main()
+    manager = CanvasScraperManager()
+    manager.run()

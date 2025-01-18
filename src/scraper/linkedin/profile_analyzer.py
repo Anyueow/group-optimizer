@@ -11,16 +11,13 @@ class LinkedInPersonalityAnalyzer:
         """
         print("\n[INFO] Initializing LinkedIn Personality Analyzer...")
         try:
-
             self.tokenizer = DistilBertTokenizer.from_pretrained(
                 "distilbert-base-uncased-finetuned-sst-2-english"
             )
 
-
             self.model = DistilBertForSequenceClassification.from_pretrained(
                 "distilbert-base-uncased-finetuned-sst-2-english"
             )
-
 
             self.model.eval()
 
@@ -33,10 +30,22 @@ class LinkedInPersonalityAnalyzer:
 
             print("[STATUS] Loading archetype keywords...")
             self.archetype_keywords = {
-                'Tech_Bro': ['software', 'engineering', 'development', 'tech', 'coding', 'programming', 'web', 'app'],
-                'ML_AI_Cracked': ['machine learning', 'artificial intelligence', 'ML', 'AI', 'deep learning', 'neural', 'data science'],
-                'Finance_Bro': ['finance', 'investment', 'banking', 'trading', 'portfolio', 'analyst', 'hedge fund'],
-                'Business_Dud': ['marketing', 'communications', 'sales', 'business development', 'strategy', 'consulting']
+                'Tech_Bro': [
+                    'software', 'engineering', 'development',
+                    'tech', 'coding', 'programming', 'web', 'app'
+                ],
+                'ML_AI_Cracked': [
+                    'machine learning', 'artificial intelligence',
+                    'ML', 'AI', 'deep learning', 'neural', 'data science'
+                ],
+                'Finance_Bro': [
+                    'finance', 'investment', 'banking', 'trading',
+                    'portfolio', 'analyst', 'hedge fund'
+                ],
+                'Business_Dud': [
+                    'marketing', 'communications', 'sales',
+                    'business development', 'strategy', 'consulting'
+                ]
             }
             print("[SUCCESS] Initialization complete!\n")
 
@@ -253,9 +262,13 @@ class LinkedInPersonalityAnalyzer:
             return "Business_Dud"
 
     def analyze_profile(self, profile: Dict) -> Dict:
-        """Analyze a profile and return comprehensive results"""
+        """
+        Analyze a profile and return comprehensive results.
+        The `details` dictionary in the result can be stored in Person.details.
+        """
         print("\n[STATUS] Starting comprehensive profile analysis...")
         try:
+            # Core scores
             print("\n[STATUS] Calculating base scores...")
             extraversion = self.calculate_extraversion_score(profile)
             conscientiousness = self.calculate_conscientiousness_score(profile)
@@ -266,17 +279,23 @@ class LinkedInPersonalityAnalyzer:
             if 'About' in profile and profile['About'] and profile['About'].strip():
                 about_sentiment = self.analyze_sentiment(profile['About'])
 
+            # Final result dictionary
             print("\n[STATUS] Compiling final analysis...")
             analysis = {
                 'name': profile.get('Name', 'Unknown'),
-                'extraversion_score': round(extraversion, 2),
-                'conscientiousness_score': round(conscientiousness, 2),
-                'archetype': archetype,
-                'group_project_fit_score': round((extraversion * 0.4 + conscientiousness * 0.6), 2)
+                # 'details' will hold archetype, extraversion, conscientiousness, etc.
+                'details': {
+                    'archetype': archetype,
+                    'extraversion_score': round(extraversion, 2),
+                    'conscientiousness_score': round(conscientiousness, 2)
+
+                },
+                'personality_score': round(extraversion * 0.4 + conscientiousness * 0.6, 2)
             }
 
+            # Optionally store about_sentiment in the details as well
             if about_sentiment:
-                analysis['about_sentiment'] = about_sentiment
+                analysis['details']['about_sentiment'] = about_sentiment
 
             print("[SUCCESS] Profile analysis complete!")
             return analysis
@@ -284,6 +303,7 @@ class LinkedInPersonalityAnalyzer:
         except Exception as e:
             print(f"[ERROR] Profile analysis failed: {str(e)}")
             raise RuntimeError(f"Profile analysis failed: {str(e)}")
+
 
 if __name__ == "__main__":
     print("\n=== LinkedIn Personality Analyzer Demo ===")
@@ -300,12 +320,12 @@ if __name__ == "__main__":
                 "role": "Senior Software Engineer",
                 "company": "Tech Corp",
                 "date_range": "2020-Present",
-                "description": None  # Missing description
+                "description": None
             },
             {
-                "role": "Co-founder",  # Empty role
-                "company": "FindHer",  # Empty company
-                "date_range": "2022-2023",  # Empty date
+                "role": "Co-founder",
+                "company": "FindHer",
+                "date_range": "2022-2023",
                 "description": "Built an application to help increase diversity in the workforce"
             },
             {
@@ -318,7 +338,7 @@ if __name__ == "__main__":
                 "role": "Teaching Assistant",
                 "company": "Northeastern University",
                 "date_range": "2020-2022",
-                "description": "Helping teach python concepts, grade papers and guide students"
+                "description": "Helping teach Python concepts, grade papers, and guide students"
             }
         ]
     }
@@ -328,3 +348,11 @@ if __name__ == "__main__":
     print("\n=== Analysis Results ===")
     for key, value in results.items():
         print(f"{key}: {value}")
+
+    # Example of how you'd store the 'details' in Person.details:
+    # if you have a Person object:
+    #
+    # person = Person(name=results['name'])
+    # person.details = results['details']
+    #
+    # print(person.details)  # Should contain archetype, extraversion, etc.
