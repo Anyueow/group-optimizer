@@ -13,6 +13,7 @@ import secrets  # or wherever you store your credentials
 from run_scraper import CanvasScraperManager
 from url_finder import URLFinder
 from linkedin.batch_analysis import LinkedInBatchAnalyzer
+from linkedin.linkedin_scraper import LinkedInScraper
 from src.objects.person import Person  # If you store Person here, adjust accordingly
 
 
@@ -51,7 +52,7 @@ def main():
     print("\n=== STEP 3: Analyzing LinkedIn Profiles for Personality ===")
 
     # Provide your LinkedIn credentials from a secrets file or environment variables
-    EMAIL = "your_email@example.com"
+    EMAIL = "anyushah@gmail.com"
     PASSWORD = secrets.Link_ps  # e.g., from secrets.py
 
     # Instantiate the batch analyzer

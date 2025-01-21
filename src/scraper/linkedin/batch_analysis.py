@@ -6,7 +6,7 @@ and personality analysis in a batch.
 from typing import List
 import secrets  # optional if you store credentials in a separate secrets file
 
-from linkedin_scraper import LinkedInScraper
+from linkedin_scraper import LinkedInScraper_Anyu
 from models import LinkedInProfile
 from profile_analyzer import LinkedInPersonalityAnalyzer
 from src.objects.person import Person
@@ -54,7 +54,7 @@ class LinkedInBatchAnalyzer:
         Creates and logs into the LinkedInScraper instance.
         Returns True if login is successful; False otherwise.
         """
-        self.scraper = LinkedInScraper(email=self.email, password=self.password, headless=self.headless)
+        self.scraper = LinkedInScraper_Anyu(email=self.email, password=self.password, headless=self.headless)
         return self.scraper.login()
 
     def run_analysis(self, profile_urls: List[str]) -> List[Person]:

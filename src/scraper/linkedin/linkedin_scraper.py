@@ -1,5 +1,3 @@
-# linkedin_scraper.py
-
 import time
 import re
 import logging
@@ -15,8 +13,7 @@ from bs4 import BeautifulSoup
 
 from models import LinkedInProfile
 
-
-class LinkedInScraper:
+class LinkedInScraper_Anyu:
     """
     OOP scraper class that logs into LinkedIn and scrapes a profile snippet
     to extract fields like name, followers, title, verified badge, experiences (with descriptions), and skills.
@@ -34,7 +31,7 @@ class LinkedInScraper:
         self.email = email
         self.password = password
 
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.DEBUG)
         self.logger = logging.getLogger(__name__)
 
         # Selenium driver options
@@ -47,6 +44,7 @@ class LinkedInScraper:
         options.add_argument('--disable-notifications')
         options.add_argument('--disable-popup-blocking')
 
+        self.logger.debug("Initializing WebDriver with options: %s", options.arguments)
         self.driver = webdriver.Chrome(options=options)
         self.wait = WebDriverWait(self.driver, 10)
 
@@ -64,10 +62,12 @@ class LinkedInScraper:
             # Wait for and fill in the email/username field
             email_field = self.wait.until(EC.presence_of_element_located((By.ID, "username")))
             email_field.send_keys(self.email)
+            self.logger.debug("Entered email: %s", self.email)
 
             # Fill in password
             password_field = self.driver.find_element(By.ID, "password")
             password_field.send_keys(self.password)
+            self.logger.debug("Entered password: [PROTECTED]")
 
             # Click the login button
             login_button = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
@@ -75,6 +75,7 @@ class LinkedInScraper:
 
             # Wait a bit for the page to load
             time.sleep(3)
+            self.logger.debug("Current URL after login attempt: %s", self.driver.current_url)
 
             if "feed" in self.driver.current_url or "checkpoint" in self.driver.current_url:
                 self.logger.info("Successfully logged in to LinkedIn.")
@@ -84,7 +85,7 @@ class LinkedInScraper:
                 return False
 
         except Exception as e:
-            self.logger.error(f"Login failed with error: {str(e)}")
+            self.logger.error("Login failed with error: %s", str(e))
             return False
 
     def scrape_profile(self, profile_url: str) -> LinkedInProfile:
@@ -101,7 +102,7 @@ class LinkedInScraper:
             LinkedInProfile: an object containing the parsed data.
         """
         try:
-            self.logger.info(f"Navigating to {profile_url}...")
+            self.logger.info("Navigating to %s...", profile_url)
             self.driver.get(profile_url)
             time.sleep(3)  # Wait for initial load
 
@@ -110,14 +111,16 @@ class LinkedInScraper:
 
             # Create a BeautifulSoup object
             soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            self.logger.debug("Page source length: %d", len(self.driver.page_source))
 
             # Parse fields from the snippet
             profile_data = self._parse_profile_soup(soup)
+            self.logger.debug("Parsed profile data: %s", profile_data)
 
             return profile_data
 
         except Exception as e:
-            self.logger.error(f"Profile scraping failed with error: {str(e)}")
+            self.logger.error("Profile scraping failed with error: %s", str(e))
             return LinkedInProfile()
 
     def _scroll_page(self):
@@ -126,11 +129,13 @@ class LinkedInScraper:
         """
         SCROLL_PAUSE_TIME = 1
         last_height = self.driver.execute_script("return document.body.scrollHeight")
+        self.logger.debug("Initial page height: %d", last_height)
 
         while True:
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(SCROLL_PAUSE_TIME)
             new_height = self.driver.execute_script("return document.body.scrollHeight")
+            self.logger.debug("New page height after scroll: %d", new_height)
             if new_height == last_height:
                 break
             last_height = new_height
@@ -148,33 +153,36 @@ class LinkedInScraper:
         name_tag = soup.find("h1", class_=re.compile(r"inline\s+t-24\s+v-align-middle\s+break-words"))
         if name_tag:
             profile.name = name_tag.get_text(strip=True)
+            self.logger.debug("Extracted name: %s", profile.name)
 
         # -- Followers --
-        #  e.g., "1,217 followers" in <p class="pvs-header__optional-link ...">
         activity_header = soup.find("p", class_=re.compile(r"pvs-header__optional-link"))
         if activity_header:
             text = activity_header.get_text(strip=True)
             match = re.search(r"([\d,]+)\s+followers", text)
             if match:
                 profile.followers = int(match.group(1).replace(",", ""))
+                self.logger.debug("Extracted followers: %d", profile.followers)
 
         # -- Title (Headline) --
-        #  e.g., <div class="text-body-medium break-words">Data Science @ NEU | Co-President @ Entrepreneurs Club</div>
         title_tag = soup.find("div", class_=re.compile(r"text-body-medium\s+break-words"))
         if title_tag:
             profile.title = title_tag.get_text(strip=True)
+            self.logger.debug("Extracted title: %s", profile.title)
 
         # -- Verified Badge --
-        #  If there's an <svg> with class="pv-text-details__verified-badge-icon", it's verified
         verified_badge = soup.find("svg", class_=re.compile("pv-text-details__verified-badge-icon"))
         if verified_badge:
             profile.verified = True
+            self.logger.debug("Verified badge found.")
 
         # -- Experiences (with descriptions) --
         profile.experiences = self._extract_experiences(soup)
+        self.logger.debug("Extracted experiences: %s", profile.experiences)
 
         # -- Skills --
         profile.skills = self._extract_skills(soup)
+        self.logger.debug("Extracted skills: %s", profile.skills)
 
         return profile
 
@@ -195,25 +203,13 @@ class LinkedInScraper:
         """
         experiences = []
 
-        # Locate the "experience" section anchor
-        exp_anchor = soup.find("div", {"id": "experience"})
-        if not exp_anchor:
-            return experiences
-
-        # Get the parent section containing experience entries
-        exp_section = exp_anchor.find_parent("section")
+        exp_section = soup.find("div", id="experience")
         if not exp_section:
+            self.logger.debug("No experience section found.")
             return experiences
 
-        # Find the main <ul> containing the experience list items
-        exp_ul = exp_section.find("ul", class_=re.compile(r"VOxovaOacKkXyIZpNanElgEpbZDnmpwugc"))
-        if not exp_ul:
-            return experiences
-
-        # Iterate through each experience list item
-        exp_lis = exp_ul.find_all("li", class_=re.compile(r"artdeco-list__item"))
-
-        for exp_li in exp_lis:
+        exp_items = exp_section.find_next("ul").find_all("li", class_=re.compile(r"artdeco-list__item"))
+        for exp_item in exp_items:
             exp_data = {
                 "role": None,
                 "company": None,
@@ -221,41 +217,27 @@ class LinkedInScraper:
                 "description": None
             }
 
-            # Extract Role
-            role_div = exp_li.find("div", class_=re.compile(r"mr1.*t-bold"))
-            if role_div:
-                role_span = role_div.find("span", attrs={"aria-hidden": "true"})
-                if role_span:
-                    exp_data["role"] = role_span.get_text(strip=True)
+            role_tag = exp_item.find("div", class_=re.compile(r"t-bold"))
+            if role_tag:
+                role = role_tag.find("span", attrs={"aria-hidden": "true"})
+                if role:
+                    exp_data["role"] = role.get_text(strip=True)
 
-            # Extract Company
-            company_div = exp_li.find("a", class_=re.compile(r"optional-action-target-wrapper"))
-            if company_div:
-                company_name = company_div.find("span", attrs={"aria-hidden": "true"})
-                if company_name:
-                    exp_data["company"] = company_name.get_text(strip=True)
+            company_tag = exp_item.find("span", class_=re.compile(r"t-14 t-normal"))
+            if company_tag:
+                exp_data["company"] = company_tag.get_text(strip=True)
 
-            # Extract Date Range
-            date_span = exp_li.find("span", class_=re.compile("pvs-entity__caption-wrapper"))
-            if date_span:
-                exp_data["date_range"] = date_span.get_text(strip=True)
+            date_range_tag = exp_item.find("span", class_=re.compile(r"pvs-entity__caption-wrapper"))
+            if date_range_tag:
+                exp_data["date_range"] = date_range_tag.get_text(strip=True)
 
-            # Extract Description
-            desc_div = exp_li.find("div", class_=re.compile(r"inline-show-more-text--is-collapsed"))
-            if desc_div:
-                exp_data["description"] = desc_div.get_text(strip=True)
+            desc_tag = exp_item.find("div", class_=re.compile(r"inline-show-more-text"))
+            if desc_tag:
+                exp_data["description"] = desc_tag.get_text(strip=True)
 
-            # Fallback to entire <li> text if role or company is missing
-            if not exp_data["role"] and not exp_data["company"]:
-                exp_data["description"] = exp_li.get_text(strip=True)
-
-            # Append the parsed experience data
             experiences.append(exp_data)
 
         return experiences
-
-
-
 
     def _extract_skills(self, soup: BeautifulSoup) -> List[str]:
         """
@@ -265,30 +247,24 @@ class LinkedInScraper:
         """
         skills_list = []
 
-        # Locate <div id="skills"> anchor
-        skills_anchor = soup.find("div", {"id": "skills"})
+        skills_anchor = soup.find("div", class_=re.compile(r"QvYTNNlszJhnEXEKkmnBOtkhIHmILXpwOMOo"))
         if not skills_anchor:
+            self.logger.debug("No skills anchor found.")
             return skills_list
 
-        # The parent <section> for the skills content
-        skills_section = skills_anchor.find_parent("section")
-        if not skills_section:
-            return skills_list
-
-        # Find the main <ul> containing the skill items
-        ul_tag = skills_section.find("ul", class_=re.compile(r"VOxovaOacKkXyIZpNanElgEpbZDnmpwugc"))
+        ul_tag = skills_anchor.find("ul", class_=re.compile(r"lOyOOfntTFbfWOJazSiFUKGPknYpbFyQbenfto"))
         if not ul_tag:
+            self.logger.debug("No skills list found.")
             return skills_list
 
-        # Iterate over each <li> item within the <ul>
         skill_items = ul_tag.find_all("li", class_=re.compile(r"artdeco-list__item"))
         for item in skill_items:
-            # Extract skill text from <span aria-hidden="true">
             skill_span = item.find("span", attrs={"aria-hidden": "true"})
             if skill_span:
                 skill_text = skill_span.get_text(strip=True)
                 if skill_text:
                     skills_list.append(skill_text)
+                    self.logger.debug("Extracted skill: %s", skill_text)
 
         return skills_list
 
