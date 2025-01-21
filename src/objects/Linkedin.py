@@ -1,4 +1,4 @@
-# linkedin_scraper.py
+# linkedinscraper_cust.py
 
 from person import Person
 

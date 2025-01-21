@@ -11,7 +11,7 @@ from selenium.common.exceptions import TimeoutException
 
 from bs4 import BeautifulSoup
 
-from models import LinkedInProfile
+from src.scraper.linkedin.models import LinkedInProfile
 
 class LinkedInScraper_Anyu:
     """

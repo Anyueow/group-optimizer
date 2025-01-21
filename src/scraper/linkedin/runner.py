@@ -1,10 +1,10 @@
-from linkedin_scraper import LinkedInScraper
+from linkedinscraper_cust import LinkedInScraper_Anyu
 import secrets
 
 def main():
     EMAIL = 'anyushah@gmail.com'
     PASSWORD = secrets.Link_ps
-    scraper = LinkedInScraper(EMAIL, PASSWORD, headless=True)
+    scraper = LinkedInScraper_Anyu(EMAIL, PASSWORD, headless=True)
 
     if scraper.login():
         profile_url = "https://www.linkedin.com/in/armaanajoomal"

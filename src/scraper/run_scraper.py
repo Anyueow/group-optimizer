@@ -87,6 +87,8 @@ class CanvasScraperManager:
             except ValueError:
                 print("Please enter a valid number.")
 
+    def close(self):
+        self.scraper.close()
 
 if __name__ == "__main__":
     manager = CanvasScraperManager()

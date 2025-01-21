@@ -6,10 +6,10 @@ and personality analysis in a batch.
 from typing import List
 import secrets  # optional if you store credentials in a separate secrets file
 
-from linkedin_scraper import LinkedInScraper_Anyu
-from models import LinkedInProfile
-from profile_analyzer import LinkedInPersonalityAnalyzer
+from src.scraper.linkedin.profile_analyzer import LinkedInPersonalityAnalyzer
 from src.objects.person import Person
+from src.scraper.linkedin.linkedinscraper_cust import LinkedInScraper_Anyu
+from src.scraper.linkedin.models import LinkedInProfile
 
 
 class LinkedInBatchAnalyzer:
@@ -86,7 +86,7 @@ class LinkedInBatchAnalyzer:
 
             # Extract a name and a chosen "personality_score" from the analysis result
             name = analysis_result.get('name', 'Unknown')
-            personality_score = analysis_result.get('group_project_fit_score', 0.0)
+            personality_score = analysis_result.get('personality_score', 0.0)
 
             # Create a Person object & set the personality score
             person = Person(name=name)
