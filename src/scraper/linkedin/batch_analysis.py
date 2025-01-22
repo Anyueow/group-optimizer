@@ -109,8 +109,11 @@ if __name__ == "__main__":
     # A list of Person objects with name + linkedin
     kaamil = Person(name= "Kaamil Thobani")
     kaamil.linkedin ="https://www.linkedin.com/in/kaamil-thobani-9a7237210/"
+    aly = Person(name="Aly")
+    aly.linkedin="https://www.linkedin.com/in/a-vergara/"
     persons = [
-        kaamil
+        kaamil,
+        aly
         # Add more Person objects if you like
     ]
     # Instantiate and run the batch analysis
