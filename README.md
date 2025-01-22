@@ -170,6 +170,7 @@ This tool is for educational purposes only. Please ensure compliance with:
 - LinkedIn's User Agreement
 - Your institution's policies
 
+
 ## Support
 
-For issues, questions, or contributions, please [open an issue](link-to-issues).
+For issues, questions, or contributions, email [shah.anan@northeastern.edu](mailto:shah.anan@northeastern.edu).
