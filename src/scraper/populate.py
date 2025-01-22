@@ -35,6 +35,7 @@ def fetch_persons_from_canvas():
         return None
 
     print(f"Fetched {len(persons)} Person objects from Canvas.")
+    canvas_manager.close()
     return persons
 
 
@@ -82,13 +83,7 @@ def analyze_linkedin_profiles(persons):
 
     # This returns a list of Person objects that presumably have 'details' set
     analyzed_persons = batch_analyzer.run_analysis(profile_urls)
-
-    # Match analyzed persons back to original persons
-    for analyzed_person in analyzed_persons:
-        for original_person in persons_with_links:
-            if analyzed_person.name.strip().lower() == original_person.name.strip().lower():
-                original_person.details = getattr(analyzed_person, 'details', {})
-                break
+    print(analyzed_persons)
 
     return persons
 

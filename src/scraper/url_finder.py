@@ -51,20 +51,16 @@ class URLFinder:
 
     def fetch_linkedin_url(self, name):
         """
-        Perform a Bing web search for: "name college site:linkedin.com/in/"
-        Then strictly traverse:
-          1. <ol id="b_results">
-          2. <li class="b_algo">
-          3. <div class="b_tpcn">
-          4. <a class="tilk" aria-label="LinkedIn"> -> href
-        Return the href if 'linkedin.com/in' is found.
-        """
+            Perform a Bing web search for: "name college site:linkedin.com/in/"
+            Return the *first* matching URL found in the first <li class="b_algo">,
+            if it contains "linkedin.com/in". Otherwise return None.
+            """
         retries = 0
         delay = self.base_delay
 
         while retries < self.max_retries:
             try:
-                # Enforce a simple rate limit to avoid hammering
+                # Simple rate-limiting
                 current_time = time.time()
                 elapsed = current_time - self.last_request_time
                 if elapsed < (1 / self.rate_limit_per_second):
@@ -90,9 +86,7 @@ class URLFinder:
 
                 # Check status code
                 if response.status_code != 200:
-                    self._debug_print(
-                        f"Non-200 status code: {response.status_code}", level=2
-                    )
+                    self._debug_print(f"Non-200 status code: {response.status_code}", level=2)
                     raise requests.exceptions.RequestException(
                         f"Status code: {response.status_code}"
                     )
@@ -100,45 +94,27 @@ class URLFinder:
                 # Parse the HTML with BeautifulSoup
                 soup = BeautifulSoup(response.text, "html.parser")
 
-                # 1) Find <ol id="b_results">
                 ol_results = soup.find("ol", id="b_results")
+                print(ol_results)
                 if not ol_results:
-                    self._debug_print("Cannot find <ol id='b_results'>", level=2)
                     return None
 
-                # 2) Find the first <li class="b_algo">
                 li_b_algo = ol_results.find("li", class_="b_algo")
+                print(li_b_algo)
                 if not li_b_algo:
-                    self._debug_print("Cannot find <li class='b_algo'>", level=2)
                     return None
 
-                # 3) Find the first <div class="b_tpcn">
-                div_b_tpcn = li_b_algo.find("div", class_="b_tpcn")
-                if not div_b_tpcn:
-                    self._debug_print("Cannot find <div class='b_tpcn'>", level=2)
+                # Find the FIRST anchor inside this <li> (in any div) that has an href
+                a_tag = li_b_algo.find("a", href=True)
+                if not a_tag:
                     return None
 
-                # 4) In that div, find <a class="tilk" aria-label="LinkedIn">
-                a_tilk = div_b_tpcn.find("a")
-                if not a_tilk:
-                    self._debug_print(
-                        "Cannot find <a class='tilk' aria-label='LinkedIn'>",
-                        level=2
-                    )
-                    return None
-
-                href = a_tilk.get("href", "")
-                if "linkedin.com/in" in href:
-                    self._debug_print(
-                        f"Found LinkedIn URL for {name}: {href}",
-                        level=2
-                    )
+                href = a_tag["href"]
+                if "linkedin.com/in" in href.lower():
                     return href
+
                 else:
-                    self._debug_print(
-                        f"No valid LinkedIn link in the first b_algo for {name}.",
-                        level=2
-                    )
+                    self._debug_print(f"No valid LinkedIn link in the first b_algo for {name}.", level=2)
                     return None
 
             except requests.exceptions.RequestException as e:
@@ -153,12 +129,14 @@ class URLFinder:
                 self._debug_print(f"Traceback: {traceback.format_exc()}", level=3)
                 return None
 
-        # If we exhausted retries
+        # If we exhausted retries and never returned a valid URL
         self._debug_print(
             f"Failed to fetch LinkedIn URL for {name} after {self.max_retries} retries.",
             level=1
         )
+
         return None
+
 
     def update_person_list(self, person_list):
         """

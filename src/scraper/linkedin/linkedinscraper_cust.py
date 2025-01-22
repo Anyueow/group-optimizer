@@ -129,13 +129,13 @@ class LinkedInScraper_Anyu:
         """
         SCROLL_PAUSE_TIME = 1
         last_height = self.driver.execute_script("return document.body.scrollHeight")
-        self.logger.debug("Initial page height: %d", last_height)
+        #self.logger.debug("Initial page height: %d", last_height)
 
         while True:
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(SCROLL_PAUSE_TIME)
             new_height = self.driver.execute_script("return document.body.scrollHeight")
-            self.logger.debug("New page height after scroll: %d", new_height)
+            #self.logger.debug("New page height after scroll: %d", new_height)
             if new_height == last_height:
                 break
             last_height = new_height

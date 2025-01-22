@@ -72,6 +72,13 @@ class CanvasScraperManager:
         # 8. Print final results (or do something else with them)
         for p in persons:
             print(f"{p}")
+            # At the very end, if we want to exit after finishing:
+        print("Scraping complete. Exiting now.")
+
+        self.close()
+
+        return persons
+
 
     def _select_course(self, courses):
         """

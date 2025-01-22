@@ -9,7 +9,7 @@ class LinkedInPersonalityAnalyzer:
         Initialize the analyzer with DistilBERT model for sentiment analysis
         and various classification capabilities.
         """
-        print("\n[INFO] Initializing LinkedIn Personality Analyzer...")
+
         try:
             self.tokenizer = DistilBertTokenizer.from_pretrained(
                 "distilbert-base-uncased-finetuned-sst-2-english"
@@ -21,7 +21,7 @@ class LinkedInPersonalityAnalyzer:
 
             self.model.eval()
 
-            print("[STATUS] Initializing sentiment analysis pipeline...")
+
             self.sentiment_analyzer = pipeline(
                 "sentiment-analysis",
                 model="distilbert-base-uncased-finetuned-sst-2-english",
@@ -50,7 +50,7 @@ class LinkedInPersonalityAnalyzer:
             print("[SUCCESS] Initialization complete!\n")
 
         except Exception as e:
-            print(f"[ERROR] Initialization failed: {str(e)}")
+            #print(f"[ERROR] Initialization failed: {str(e)}")
             raise RuntimeError(f"Failed to initialize models: {str(e)}")
 
     def analyze_sentiment(self, text: str) -> Dict[str, float]:
@@ -346,6 +346,7 @@ if __name__ == "__main__":
     print("\n[STATUS] Starting analysis of test profile...")
     results = analyzer.analyze_profile(test_profile)
     print("\n=== Analysis Results ===")
+    print(results)
     for key, value in results.items():
         print(f"{key}: {value}")
 

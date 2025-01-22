@@ -1,34 +1,33 @@
-# canvas_scraper.py
-
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-import browser_cookie3
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
-import json
-import os
-# ... add any additional Selenium imports
+import browser_cookie3
 
 class CanvasScraper:
     """
-    A class that handles all Canvas-related scraping via Selenium.
+    A class that handles Canvas-related scraping via HTTP requests
+    (using cookies from an already logged-in browser session).
     """
 
     def __init__(self, canvas_url):
         """
-        Initialize scraper with your Canvas URL
+        Initialize the scraper with your Canvas URL
         """
         self.base_url = canvas_url.rstrip('/')  # Ensure no trailing slash
-        self.domain = urlparse(canvas_url).netloc
+        self.domain = urlparse(self.base_url).netloc
         self.session = requests.Session()
 
     def load_cookies_from_browser(self, browser_name='chrome'):
         """
-        Load cookies from your already logged-in browser session
+        Load cookies from an already logged-in browser session
+        so the requests session is authenticated with Canvas.
+
+        Returns:
+            bool: True if cookies were loaded & Canvas returned a 200 OK,
+                  False otherwise.
         """
         try:
+            # Grab cookies from the specified browser
             if browser_name == 'chrome':
                 cookie_jar = browser_cookie3.chrome(domain_name=self.domain)
             elif browser_name == 'firefox':
@@ -37,9 +36,16 @@ class CanvasScraper:
                 cookie_jar = browser_cookie3.safari(domain_name=self.domain)
             elif browser_name == 'edge':
                 cookie_jar = browser_cookie3.edge(domain_name=self.domain)
+            else:
+                print(f"Unsupported browser: {browser_name}")
+                return False
 
+            # Update our requests session
             self.session.cookies.update(cookie_jar)
-            response = self.session.get(f"{self.base_url}/api/v1/users/self")
+
+            # Test cookies by hitting an authenticated endpoint
+            test_url = f"{self.base_url}/api/v1/users/self"
+            response = self.session.get(test_url)
             return response.ok
 
         except Exception as e:
@@ -47,7 +53,12 @@ class CanvasScraper:
             return False
 
     def get_courses(self):
-        """Get courses using direct HTML parsing"""
+        """
+        Get the list of courses by scraping the /courses page HTML.
+
+        Returns:
+            list of tuples: [(course_id, course_name), ...]
+        """
         response = self.session.get(f"{self.base_url}/courses")
         if not response.ok:
             print(f"Failed to fetch courses: {response.status_code}")
@@ -56,7 +67,7 @@ class CanvasScraper:
         soup = BeautifulSoup(response.text, 'html.parser')
         courses = []
 
-        # Try multiple selectors as Canvas might have different layouts
+        # Canvas can show courses in different layouts. Try them:
         rows = (
                 soup.find_all('tr', class_='course-list-table-row') or  # Table layout
                 soup.find_all('div', class_='ic-DashboardCard') or      # Card layout
@@ -67,7 +78,7 @@ class CanvasScraper:
             course_id = None
             course_name = None
 
-            # Try table layout first
+            # 1) Table layout
             course_span = item.find('span', attrs={'data-course-id': True})
             if course_span:
                 course_id = course_span.get('data-course-id')
@@ -75,12 +86,13 @@ class CanvasScraper:
                 if name_span:
                     course_name = name_span.get_text(strip=True)
 
-            # Try card layout
+            # 2) Card layout
             if not course_id:
                 card_link = item.find('a', attrs={'href': lambda x: x and '/courses/' in x})
                 if card_link:
                     href = card_link.get('href', '')
                     try:
+                        # e.g. /courses/1234 => split out "1234"
                         course_id = href.split('/courses/')[1].split('/')[0]
                         course_name = card_link.get_text(strip=True)
                     except IndexError:
@@ -92,7 +104,12 @@ class CanvasScraper:
         return courses
 
     def get_course_roster(self, course_id):
-        """Get roster for a specific course"""
+        """
+        Get the roster (list of enrolled users) for a specific course via Canvas API.
+
+        Returns:
+            list of dict: each dict represents a user's data in Canvas
+        """
         url = f"{self.base_url}/api/v1/courses/{course_id}/users"
         params = {
             'include[]': ['enrollments', 'email'],
@@ -109,15 +126,17 @@ class CanvasScraper:
             users = response.json()
             all_users.extend(users)
 
-            # Get next page URL
+            # Get next-page URL from the Link header
             url = response.links.get('next', {}).get('url')
+            # We only pass params the first time;
+            # subsequent requests rely on the next URL
             params = {} if url else params
 
         return all_users
 
-
     def close(self):
         """
-        Close the Selenium browser.
+        Close the underlying requests session (optional).
         """
-        self.driver.quit()
+        self.session.close()
+        print("Session closed.")

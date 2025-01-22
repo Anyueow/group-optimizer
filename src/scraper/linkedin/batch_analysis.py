@@ -108,9 +108,8 @@ if __name__ == "__main__":
 
     # A list of LinkedIn profile URLs to scrape
     profiles = [
-        "https://www.linkedin.com/in/manvi-kottakota",
-        "https://www.linkedin.com/in/anyushah",
-        "https://www.linkedin.com/in/armaanajoomal",
+        "https://www.linkedin.com/in/kailinx/",
+
     ]
 
     # Instantiate and run the batch analysis
