@@ -57,47 +57,47 @@ class LinkedInBatchAnalyzer:
         self.scraper = LinkedInScraper_Anyu(email=self.email, password=self.password, headless=self.headless)
         return self.scraper.login()
 
-    def run_analysis(self, profile_urls: List[str]) -> List[Person]:
+    def run_analysis(self, persons: List[Person]) -> List[Person]:
         """
-        Given a list of LinkedIn profile URLs, scrape & analyze each,
-        returning a list of Person objects with their personality scores.
+        Accepts a list of Person objects. For each person who has a
+        LinkedIn URL, scrape + analyze that profile, storing results
+        back into that same Person. Returns the same list.
         """
-        # 1) Create & log in to the scraper
         if not self.login():
             print("Login failed; cannot proceed with scraping.")
-            return []
+            return persons  # return them unmodified if login fails
 
-        results = []
 
-        # 2) Loop over each profile URL
-        for url in profile_urls:
-            print(f"\nScraping profile: {url}")
-            linkedin_profile = self.scraper.scrape_profile(url)
+        for person in persons:
+            print(f"Analyzing {person.name}")
+            linkedin_profile = self.scraper.scrape_profile(person.linkedin)
 
             if not linkedin_profile:
-                print("Failed to retrieve profile data.")
-                continue
+                print(f"Failed to retrieve LinkedIn profile for {person.name}.")
 
-            # Convert to dict for analyzer
+
+            # Convert to dict, then analyze
             profile_dict = self._profile_to_dict(linkedin_profile)
-
-            # Run the analyzer
             analysis_result = self.analyzer.analyze_profile(profile_dict)
 
-            # Extract a name and a chosen "personality_score" from the analysis result
-            name = analysis_result.get('name', 'Unknown')
-            personality_score = analysis_result.get('personality_score', 0.0)
+            # Suppose the analyzer returns a dict like:
+            # {
+            #   "name": "Fu Chai",
+            #   "personality_score": 0.85,
+            #   "extroversion": 0.7,
+            #   ...
+            # }
+            #
+            # Store the entire analysis in person.details
+            person.details = analysis_result
 
-            # Create a Person object & set the personality score
-            person = Person(name=name)
+            # Optionally also call a setter if your Person class has it
+            personality_score = analysis_result.get('personality_score')
             person.set_personality_score(personality_score)
 
-            # Collect the result
-            results.append(person)
-
-        # 3) Close the scraper once finished
+            # Close the scraper once finished
         self.scraper.close()
-        return results
+        return persons
 
 
 if __name__ == "__main__":
@@ -106,15 +106,16 @@ if __name__ == "__main__":
     EMAIL = "anyushah@gmail.com"
     PASSWORD = secrets.Link_ps  # e.g., stored in secrets.py
 
-    # A list of LinkedIn profile URLs to scrape
-    profiles = [
-        "https://www.linkedin.com/in/kailinx/",
-
+    # A list of Person objects with name + linkedin
+    kaamil = Person(name= "Kaamil Thobani")
+    kaamil.linkedin ="https://www.linkedin.com/in/kaamil-thobani-9a7237210/"
+    persons = [
+        kaamil
+        # Add more Person objects if you like
     ]
-
     # Instantiate and run the batch analysis
     batch_analyzer = LinkedInBatchAnalyzer(email=EMAIL, password=PASSWORD, headless=True)
-    analysis_results = batch_analyzer.run_analysis(profiles)
+    analysis_results = batch_analyzer.run_analysis(persons)
 
     print("\n=== Final Batch Analysis Results ===")
     for person in analysis_results:

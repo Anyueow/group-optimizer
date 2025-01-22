@@ -29,7 +29,7 @@ class CanvasScraperManager:
         prompts user for course selection, fetches the roster, and processes it.
         """
         # 1. Load cookies
-        print("\nAttempting to load cookies from Edge browser...")
+        print("\nAttempting to load cookies from Chrome browser...")
         if not self.scraper.load_cookies_from_browser('edge'):
             print("Failed to load cookies! Make sure you're logged into Canvas in Edge browser.")
             return

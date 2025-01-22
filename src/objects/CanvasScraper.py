@@ -17,7 +17,7 @@ class CanvasScraper:
         self.domain = urlparse(self.base_url).netloc
         self.session = requests.Session()
 
-    def load_cookies_from_browser(self, browser_name='chrome'):
+    def load_cookies_from_browser(self, browser_name='edge'):
         """
         Load cookies from an already logged-in browser session
         so the requests session is authenticated with Canvas.

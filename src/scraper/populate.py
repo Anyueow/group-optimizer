@@ -66,26 +66,21 @@ def find_linkedin_urls(persons):
 def analyze_linkedin_profiles(persons):
     """
     Uses LinkedInBatchAnalyzer to analyze each Person's LinkedIn profile.
-    Returns:
-        The same list of Person objects, but with .details filled in.
+    Returns the same list of Person objects, but with .details filled in.
     """
     print("\n=== STEP 3: Analyzing LinkedIn Profiles for Personality ===")
 
-    # Provide your LinkedIn credentials from a secrets file or env variables
     EMAIL = "anyushah@gmail.com"
-    PASSWORD = secrets.Link_ps  # e.g., from secrets.py
+    PASSWORD = secrets.Link_ps
 
     batch_analyzer = LinkedInBatchAnalyzer(email=EMAIL, password=PASSWORD, headless=True)
 
-    # Only pass LinkedIn URLs
-    persons_with_links = [p for p in persons if p.linkedin]
-    profile_urls = [person.linkedin for person in persons_with_links]
+    # Just pass the entire list of persons into run_analysis
+    enriched_persons = batch_analyzer.run_analysis(persons)
 
-    # This returns a list of Person objects that presumably have 'details' set
-    analyzed_persons = batch_analyzer.run_analysis(profile_urls)
-    print(analyzed_persons)
-
-    return persons
+    # Now 'enriched_persons' is the same list object as 'persons',
+    # but with details appended. (In Python, lists are mutable.)
+    return enriched_persons
 
 
 # --------------------------------------------------------------------------
@@ -100,16 +95,15 @@ def sort_and_print_results(persons):
 
     # Sort in place by 'group_project_fit_score' (default 0 if missing)
     persons.sort(
-        key=lambda p: p.details.get('group_project_fit_score', 0) if p.details else 0,
+        key=lambda p: p.details.get('personality_score', 0) if p.details else 0,
         reverse=True  # Highest score first
     )
 
     for person in persons:
-        score = person.details.get('group_project_fit_score', 0) if person.details else 0
         print(
             f"Name: {person.name}, "
             f"LinkedIn: {person.linkedin}, "
-            f"Score: {score}, "
+            f"Score: {person.personality_score}, "
             f"Details: {person.details if person.details else 'N/A'}"
         )
 
@@ -125,15 +119,15 @@ def main():
         return  # End pipeline early if no data
 
     # Step 2
-    persons = find_linkedin_urls(persons)
+    updated_persons = find_linkedin_urls(persons)
     # You could do additional checks here if needed
 
     # Step 3
-    persons = analyze_linkedin_profiles(persons)
+    enriched_persons = analyze_linkedin_profiles(updated_persons)
     # Additional checks (e.g., do we have any relevant results?)
 
     # Step 4
-    sort_and_print_results(persons)
+    sort_and_print_results(enriched_persons)
     # Pipeline ends
 
 if __name__ == "__main__":

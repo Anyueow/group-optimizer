@@ -36,7 +36,7 @@ class LinkedInPersonalityAnalyzer:
                 ],
                 'ML_AI_Cracked': [
                     'machine learning', 'artificial intelligence',
-                    'ML', 'AI', 'deep learning', 'neural', 'data science'
+                    'ML', 'AI', 'deep learning', 'neural', 'data science', "python"
                 ],
                 'Finance_Bro': [
                     'finance', 'investment', 'banking', 'trading',
@@ -45,7 +45,35 @@ class LinkedInPersonalityAnalyzer:
                 'Business_Dud': [
                     'marketing', 'communications', 'sales',
                     'business development', 'strategy', 'consulting'
-                ]
+                ],
+                'Pre-Med/Pre-Health': [
+                    'biology', 'chemistry', 'organic chemistry', 'pre-med', 'MCAT', 'medicine', 'health', 'nursing', 'anatomy', 'physiology', 'healthcare'
+                ],
+                'Law School Bound': [
+                    'pre-law', 'political science', 'law', 'legal', 'debate', 'argument', 'LSAT', 'judiciary', 'constitution', 'policy'
+                ],
+                'The Academic/Scholar': [
+                    'research', 'academic', 'professor', 'PhD', 'graduate student', 'literature', 'history', 'philosophy', 'theory', 'intellectual', 'publication', 'grant'
+                ],
+                'The Artist/Creative': [
+                    'art', 'design', 'music', 'theatre', 'film', 'photography', 'writing', 'literature', 'creative writing', 'studio art', 'performance', 'gallery', 'exhibition'
+                ],
+                'The Activist/Advocate': [
+                    'activism', 'social justice', 'politics', 'environment', 'human rights', 'protest', 'advocacy', 'community', 'organization', 'volunteer'
+                ],
+                'The Athlete/Jock': [
+                    'sports', 'athletics', 'team', 'competition', 'training', 'fitness', 'gym', 'game', 'coach', 'scholarship', 'NCAA'
+                ],
+
+                'The Gamer/Esports Enthusiast': [
+                    'gaming', 'esports', 'video games', 'online games', 'streaming', 'Twitch', 'Discord', 'tournaments', 'competitive gaming', 'PC gaming', 'console gaming'
+                ],
+                'The Engineer (Beyond Software)': [
+                    'mechanical engineering', 'civil engineering', 'electrical engineering', 'chemical engineering', 'physics', 'math', 'design', 'construction', 'robotics', 'manufacturing'
+                ],
+                'The Education Major': [
+                    'education', 'teaching', 'teacher', 'school', 'classroom', 'pedagogy', 'curriculum', 'learning', 'child development', 'special education'
+                ],
             }
             print("[SUCCESS] Initialization complete!\n")
 
@@ -74,13 +102,14 @@ class LinkedInPersonalityAnalyzer:
         score = 0.0
 
         # Followers contribution
+        follower_threshold = 500
         followers = profile.get('Followers', 0)
-        follower_score = min(40, (followers / 1000) * 20)
+        follower_score = min(40, (followers / follower_threshold) * 20)
         score += follower_score
         print(f"[INFO] Follower score: {follower_score:.2f}/40")
 
         # Leadership roles contribution
-        leadership_keywords = ['president', 'director', 'lead', 'founder', 'chair']
+        leadership_keywords = ['president', 'director', 'lead', 'founder', 'chair', 'executive']
         leadership_score = 0
         valid_experiences = 0
 
@@ -228,7 +257,7 @@ class LinkedInPersonalityAnalyzer:
                 continue
 
             text = " ".join(text_parts).lower()
-            print(f"\n[INFO] Analyzing experience: {text[:50]}...")
+            #print(f"\n[INFO] Analyzing experience: {text[:50]}...")
 
             sentiment = self.analyze_sentiment(text)
             sentiment_boost = 0.5 if sentiment.get('POSITIVE', 0) > 0.6 else 0
@@ -312,7 +341,7 @@ if __name__ == "__main__":
     # Test profile with edge cases
     test_profile = {
         "Name": "John Doe",
-        "Followers": 500,
+        "Followers": 1600,
         "Verified": True,
         "About": "",  # Empty about section
         "Experiences": [
@@ -343,8 +372,35 @@ if __name__ == "__main__":
         ]
     }
 
+    test_profile_jane = {
+        "Name": "Jane Smith",
+        "Followers": 850,
+        "Verified": False,
+        "About": "Aspiring physician passionate about public health and healthcare access. Volunteering with local clinics and advocating for health equity.",
+        "Experiences": [
+            {
+                "role": "Volunteer EMT",
+                "company": "Local Ambulance Corps",
+                "date_range": "2021-Present",
+                "description": "Providing emergency medical care and responding to 911 calls."
+            },
+            {
+                "role": "Research Assistant",
+                "company": "University Hospital",
+                "date_range": "2022-2023",
+                "description": "Assisting with research on cardiovascular disease and its impact on underserved communities."
+            },
+            {
+                "role": "President",
+                "company": "Pre-Med Society",
+                "date_range": "2020-2022",
+                "description": "Organizing events, workshops, and volunteer opportunities for pre-med students."
+            }
+        ]
+    }
+
     print("\n[STATUS] Starting analysis of test profile...")
-    results = analyzer.analyze_profile(test_profile)
+    results = analyzer.analyze_profile(test_profile_jane)
     print("\n=== Analysis Results ===")
     print(results)
     for key, value in results.items():
