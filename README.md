@@ -160,8 +160,8 @@ python src/scraper/populate.py
 5. Create a Pull Request
 
 ## License
-
-[Add your chosen license here]
+MIT License - 
+[LICENSE.md](LICENSE.md)
 
 ## Disclaimer
 
